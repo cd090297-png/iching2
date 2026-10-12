@@ -3,10 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>易經開卦</title>
+  <title>易經開卦系統</title>
   
   <!-- 引入開源的曆法套件：自動精算當日節氣與地支月令 -->
   <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
+  <!-- 引入 html2canvas 套件：用於將 HTML 轉換為圖片 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
     body {
@@ -28,12 +30,18 @@
     h2 { text-align: center; color: #2c3e50; margin-top: 0; font-size: 22px; }
     .form-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; }
     .input-group { flex: 1; min-width: 110px; display: flex; flex-direction: column; }
+    
+    /* 讓問題輸入框獨佔一行 */
+    .full-width { flex: 1 1 100%; } 
+    
     label { font-size: 16px; margin-bottom: 8px; color: #555; font-weight: bold; }
-    input[type="number"], select {
+    
+    input[type="number"], input[type="text"], select {
       width: 100%; box-sizing: border-box; padding: 12px;
       border: 1px solid #c0c6cc; border-radius: 8px; font-size: 18px;
       text-align: center; background-color: #fafbfc;
     }
+    
     button {
       width: 100%; padding: 15px; background-color: #4a6fa5; color: white;
       border: none; border-radius: 8px; font-size: 18px; cursor: pointer;
@@ -41,7 +49,21 @@
     }
     button:hover { background-color: #3b5a86; }
     
+    /* 下載按鈕的獨立樣式 */
+    .btn-download {
+      background-color: #27ae60;
+      margin-top: 20px;
+    }
+    .btn-download:hover { background-color: #219653; }
+    
     .result-area { margin-top: 25px; padding-top: 20px; border-top: 2px dashed #e1e4e8; display: none; }
+    
+    /* 為了確保截圖時背景是白色的，給要截圖的區塊加上白色背景和 padding */
+    .capture-area {
+      background-color: #ffffff;
+      padding: 15px;
+      border-radius: 8px;
+    }
     
     .layout-wrapper { display: flex; flex-direction: column; gap: 30px; margin-bottom: 20px; }
     .gua-panel { width: 100%; }
@@ -102,8 +124,14 @@
 </head>
 <body>
   <div class="container">
-    <h2>開卦試算中階</h2>
+    <h2>開卦試算中階版</h2>
     <div class="form-row">
+      <!-- 測問事項 -->
+      <div class="input-group full-width">
+        <label>測問事項</label>
+        <input type="text" id="question" placeholder="請輸入問題 (供截圖紀錄使用)">
+      </div>
+      
       <div class="input-group">
         <label>月令(地支)</label>
         <select id="month" required>
@@ -134,52 +162,63 @@
           <option value="5">辰 07:00-08:59</option><option value="6">巳 09:00-10:59</option>
           <option value="7">午 11:00-12:59</option><option value="8">未 13:00-14:59</option>
           <option value="9">申 15:00-16:59</option><option value="10">酉 17:00-18:59</option>
-          <option value="11">戌 19:00-20:59</option><option value="12">亥 21:00-22:59</option>
         </select>
       </div>
     </div>
     
     <button id="btnSubmit" onclick="runCalculation()">開始排卦</button>
 
+    <!-- 結果區：將下載截圖的目標設定為 captureTarget -->
     <div id="resultArea" class="result-area">
-      <div style="text-align: center; margin-bottom: 20px; display: flex; justify-content: center; flex-wrap: wrap; gap: 15px;">
-        <div>
-          <span style="font-size: 18px; font-weight: bold; color: #555;">貴人：</span>
-          <span id="resGuiRen" class="highlight"></span>
+      <div id="captureTarget" class="capture-area">
+        
+        <!-- 顯示測問事項區塊 -->
+        <div id="resQuestionArea" style="text-align: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #e1e4e8; display: none;">
+          <span style="font-size: 20px; font-weight: bold; color: #333;">問題：</span>
+          <span id="resQuestion" style="font-size: 20px; font-weight: bold; color: #1976d2;"></span>
         </div>
-        <div>
-          <span style="font-size: 18px; font-weight: bold; color: #555;">卦氣合化：</span>
-          <span id="resGuaQi" class="highlight"></span>
-        </div>
-      </div>
 
-      <div class="layout-wrapper">
-        <!-- 上方：卦象區 -->
-        <div class="gua-panel">
-          <div class="grid-3">
-            <div class="box"><div class="box-title">變卦</div><div class="box-symbol" id="symBianGua"></div><div class="box-value" id="resBianGua"></div></div>
-            <div class="box"><div class="box-title">互卦</div><div class="box-symbol" id="symHuGua"></div><div class="box-value" id="resHuGua"></div></div>
-            <div class="box"><div class="box-title">本卦</div><div class="box-symbol" id="symBenGua"></div><div class="box-value" id="resBenGua"></div></div>
+        <div style="text-align: center; margin-bottom: 20px; display: flex; justify-content: center; flex-wrap: wrap; gap: 15px;">
+          <div>
+            <span style="font-size: 18px; font-weight: bold; color: #555;">貴人：</span>
+            <span id="resGuiRen" class="highlight"></span>
           </div>
-          <div class="grid-3">
-            <div class="box"><div class="box-title">變</div><div class="box-value" id="resBian"></div></div>
-            <div class="box"><div class="box-title">互用 / 互體</div><div class="box-value"><span id="resHuYong"></span> / <span id="resHuTi"></span></div></div>
-            <div class="box"><div class="box-title">用 / 體</div><div class="box-value"><span id="resYong"></span> / <span id="resTi"></span></div></div>
+          <div>
+            <span style="font-size: 18px; font-weight: bold; color: #555;">卦氣合化：</span>
+            <span id="resGuaQi" class="highlight"></span>
           </div>
         </div>
 
-        <!-- 下方：五行佈局區 -->
-        <div class="wuxing-panel">
-          <div style="text-align: center; color: #666; font-size: 15px; font-weight: bold; margin-bottom: 25px;">【 五行能量與卦名分佈 】</div>
-          <div class="wx-grid" id="wxGridArea"></div>
+        <div class="layout-wrapper">
+          <!-- 上方：卦象區 -->
+          <div class="gua-panel">
+            <div class="grid-3">
+              <div class="box"><div class="box-title">變卦</div><div class="box-symbol" id="symBianGua"></div><div class="box-value" id="resBianGua"></div></div>
+              <div class="box"><div class="box-title">互卦</div><div class="box-symbol" id="symHuGua"></div><div class="box-value" id="resHuGua"></div></div>
+              <div class="box"><div class="box-title">本卦</div><div class="box-symbol" id="symBenGua"></div><div class="box-value" id="resBenGua"></div></div>
+            </div>
+            <div class="grid-3">
+              <div class="box"><div class="box-title">變</div><div class="box-value" id="resBian"></div></div>
+              <div class="box"><div class="box-title">互用 / 互體</div><div class="box-value"><span id="resHuYong"></span> / <span id="resHuTi"></span></div></div>
+              <div class="box"><div class="box-title">用 / 體</div><div class="box-value"><span id="resYong"></span> / <span id="resTi"></span></div></div>
+            </div>
+          </div>
+
+          <!-- 下方：五行佈局區 -->
+          <div class="wuxing-panel">
+            <div style="text-align: center; color: #666; font-size: 15px; font-weight: bold; margin-bottom: 25px;">【 五行能量與卦名分佈 】</div>
+            <div class="wx-grid" id="wxGridArea"></div>
+          </div>
+        </div>
+        
+        <!-- 最下方：內心卦 -->
+        <div class="neixin-area">
+          <div>內心(體)： <span id="resNeiXinTi" style="color: #d32f2f;"></span></div>
+          <div>內心(用)： <span id="resNeiXinYong"></span></div>
         </div>
       </div>
-      
-      <!-- 最下方：內心卦 -->
-      <div class="neixin-area">
-        <div>內心(體)： <span id="resNeiXinTi" style="color: #d32f2f;"></span></div>
-        <div>內心(用)： <span id="resNeiXinYong"></span></div>
-      </div>
+      <!-- 下載截圖按鈕放在 captureTarget 的外面，這樣它不會出現在圖片中 -->
+      <button class="btn-download" onclick="downloadImage()">⬇️ 下載截圖</button>
     </div>
   </div>
 
@@ -249,6 +288,8 @@
     }
 
     function runCalculation() {
+      // 取得輸入的問題
+      const questionText = document.getElementById('question').value.trim();
       const month = parseInt(document.getElementById('month').value);
       const num1 = parseInt(document.getElementById('num1').value);
       const num2 = parseInt(document.getElementById('num2').value);
@@ -331,6 +372,14 @@
 
       document.getElementById('resultArea').style.display = 'block';
       
+      // 更新問題區塊
+      if (questionText) {
+        document.getElementById('resQuestion').innerText = questionText;
+        document.getElementById('resQuestionArea').style.display = 'block';
+      } else {
+        document.getElementById('resQuestionArea').style.display = 'none';
+      }
+      
       document.getElementById('resGuiRen').innerText = `${guiRen} (${bodyStatus})`;
       document.getElementById('resGuaQi').innerText = guaQi;
       document.getElementById('resGuaQi').style.color = wxColors[guaQi] || '#d35400';
@@ -384,6 +433,36 @@
         ${buildBox(rel.meKe, '我剋', '妻財格')}
         ${buildBox(rel.meSheng, '我生', '付出格')}
       `;
+    }
+
+    // --- 下載圖片功能 ---
+    function downloadImage() {
+      const captureTarget = document.getElementById('captureTarget');
+      
+      // 使用 html2canvas 將指定的 div 轉成 canvas
+      html2canvas(captureTarget, {
+        scale: 2, // 提高圖片解析度
+        backgroundColor: '#ffffff' // 確保背景是白色的
+      }).then(canvas => {
+        // 將 canvas 轉為圖片的 DataURL (Base64 編碼)
+        const imgData = canvas.toDataURL('image/png');
+        
+        // 建立一個隱藏的 a 標籤來觸發下載
+        const a = document.createElement('a');
+        a.href = imgData;
+        
+        // 根據使用者輸入的問題來命名檔案，如果沒有輸入則預設命名
+        const questionText = document.getElementById('question').value.trim();
+        const fileName = questionText ? `易經卦象_${questionText}.png` : '易經卦象.png';
+        a.download = fileName;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }).catch(err => {
+        console.error("圖片產生失敗", err);
+        alert("產生截圖失敗，請稍後再試！");
+      });
     }
   </script>
 </body>
