@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>易經開卦系統</title>
+  <title>易經開卦</title>
   <style>
     body {
       font-family: 'Helvetica Neue', Helvetica, Arial, 'Microsoft JhengHei', sans-serif;
@@ -48,15 +48,14 @@
     .wx-grid { 
       display: grid; 
       grid-template-columns: repeat(3, 1fr); 
-      /* 加大上下排的間距 */
-      gap: 55px 8px; 
+      /* 因為文字移到下方，稍微調整上下排的間距 */
+      gap: 40px 8px; 
       justify-items: center; 
       align-items: start; 
     }
     .wx-item { display: flex; flex-direction: column; align-items: center; }
     
     .wx-box {
-      /* 縮小方塊尺寸 */
       width: 65px; height: 65px; 
       border: 2px solid #333; display: flex; flex-direction: column;
       align-items: center; justify-content: center; position: relative; background: #fff;
@@ -64,16 +63,15 @@
     
     .wx-char { font-size: 30px; font-weight: bold; }
     
-    /* 放大部分標籤文字 */
+    /* 標籤文字 */
     .wx-count { position: absolute; top: -22px; left: -5px; font-weight: bold; font-size: 16px; color: #333; }
-    .wx-label { position: absolute; font-size: 14px; text-align: center; white-space: nowrap; color: #333; font-weight: bold; }
+    .wx-label-top { position: absolute; font-size: 14px; text-align: center; white-space: nowrap; color: #333; font-weight: bold; top: -22px; width: 100%; }
     
-    .wx-label-top { top: -22px; width: 100%; text-align: center; }
-    /* 因為字變大，右側標籤向外推一點避免重疊 */
-    .wx-label-right { right: -48px; top: 50%; transform: translateY(-50%); text-align: left; }
+    /* 移到正下方的格局文字 */
+    .wx-label-bottom { font-size: 14px; color: #333; font-weight: bold; margin-top: 6px; margin-bottom: 4px; text-align: center; }
     
-    .wx-sources { margin-top: 10px; text-align: center; }
-    /* 放大下方卦名文字 */
+    .wx-sources { text-align: center; }
+    /* 下方卦名文字 */
     .wx-source-line { font-size: 14px; color: #555; margin-bottom: 3px; white-space: nowrap; line-height: 1.3; font-weight: bold; }
 
     /* 顏色區分 */
@@ -105,12 +103,12 @@
 </head>
 <body>
   <div class="container">
-    <h2>開卦試算 (中階版)</h2>
+    <h2>開卦試算中階版</h2>
     <div class="form-row">
       <div class="input-group">
         <label>月令</label>
         <select id="month" required>
-          <option value="" disabled selected>月份</option>
+          <option value="" disabled selected>月令</option>
           <option value="1">1月</option><option value="2">2月</option>
           <option value="3">3月</option><option value="4">4月</option>
           <option value="5">5月</option><option value="6">6月</option>
@@ -244,9 +242,7 @@
       const upperGua = trigrams[upperIdx];
       const lowerGua = trigrams[lowerIdx];
       
-      // 取得本卦爻陣列 (長度6，前三個為下卦，後三個為上卦)
       let yaosArr = (lowerGua.bits + upperGua.bits).split('');
-      
       let bianYaosArr = [...yaosArr];
       bianYaosArr[movingYao-1] = bianYaosArr[movingYao-1] === '1' ? '0' : '1';
       
@@ -279,7 +275,6 @@
       const zongUpperGua = trigrams[bitsMap[zongYaosArr.slice(3,6).join('')]];
       const neiXinYongName = hexagramNames[zongUpperGua.name + zongLowerGua.name];
 
-
       const guaSourcesAll = [
         { id: '體', tri: tiGua, hex: benGuaName, show: false }, 
         { id: '1', tri: yongGua, hex: benGuaName, show: true }, 
@@ -307,7 +302,6 @@
 
       document.getElementById('resultArea').style.display = 'block';
       
-      // 更新貴人與卦氣合化
       document.getElementById('resGuiRen').innerText = `${guiRen} (${bodyStatus})`;
       document.getElementById('resGuaQi').innerText = guaQi;
       document.getElementById('resGuaQi').style.color = wxColors[guaQi] || '#d35400';
@@ -324,14 +318,13 @@
       document.getElementById('resHuYong').innerText = huYongGua.name + huYongGua.wx;
       document.getElementById('resBian').innerText = bianTransformed.name + bianTransformed.wx;
 
-      // 顯示內心卦
       document.getElementById('resNeiXinTi').innerText = neiXinTiName;
       document.getElementById('resNeiXinYong').innerText = neiXinYongName;
 
       const rel = findWxRelation(tiGua.wx);
       const circledNum = { '1': '①', '2': '②', '3': '③', '4': '④' };
       
-      const buildBox = (wx, labelTop, labelRight) => {
+      const buildBox = (wx, labelTop, labelBottom) => {
         let sourcesHTML = '';
         const matches = guaSourcesAll.filter(s => s.tri.wx === wx && s.show);
         
@@ -343,10 +336,10 @@
           <div class="wx-item">
             <div class="wx-box wx-color-${wx}">
               <div class="wx-count">${wxCounts[wx] || ''}</div>
-              <div class="wx-label wx-label-top">${labelTop}</div>
+              <div class="wx-label-top">${labelTop}</div>
               <span class="wx-char">${wx}</span>
-              <div class="wx-label wx-label-right">${labelRight}</div>
             </div>
+            <div class="wx-label-bottom">${labelBottom}</div>
             <div class="wx-sources">
               ${sourcesHTML}
             </div>
