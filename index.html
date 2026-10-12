@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>易經開卦系統 (圖示初階版 - 手機優化版)</title>
+  <title>易經開卦系統</title>
   <style>
     body {
       font-family: 'Helvetica Neue', Helvetica, Arial, 'Microsoft JhengHei', sans-serif;
@@ -48,27 +48,33 @@
     .wx-grid { 
       display: grid; 
       grid-template-columns: repeat(3, 1fr); 
-      gap: 20px 10px; 
+      /* 加大上下排的間距 */
+      gap: 55px 8px; 
       justify-items: center; 
       align-items: start; 
     }
     .wx-item { display: flex; flex-direction: column; align-items: center; }
+    
     .wx-box {
-      width: 75px; height: 75px; border: 2px solid #333; display: flex; flex-direction: column;
+      /* 縮小方塊尺寸 */
+      width: 65px; height: 65px; 
+      border: 2px solid #333; display: flex; flex-direction: column;
       align-items: center; justify-content: center; position: relative; background: #fff;
     }
     
-    .wx-char { font-size: 32px; font-weight: bold; }
+    .wx-char { font-size: 30px; font-weight: bold; }
     
-    /* 強制確保數字與外部標籤為深色，不被其他設定影響 */
-    .wx-count { position: absolute; top: -20px; left: -5px; font-weight: bold; font-size: 14px; color: #333; }
-    .wx-label { position: absolute; font-size: 11px; text-align: center; white-space: nowrap; color: #333; font-weight: bold; }
+    /* 放大部分標籤文字 */
+    .wx-count { position: absolute; top: -22px; left: -5px; font-weight: bold; font-size: 16px; color: #333; }
+    .wx-label { position: absolute; font-size: 14px; text-align: center; white-space: nowrap; color: #333; font-weight: bold; }
     
-    .wx-label-top { top: -20px; width: 100%; text-align: center; }
-    .wx-label-right { right: -35px; top: 50%; transform: translateY(-50%); text-align: left; }
+    .wx-label-top { top: -22px; width: 100%; text-align: center; }
+    /* 因為字變大，右側標籤向外推一點避免重疊 */
+    .wx-label-right { right: -48px; top: 50%; transform: translateY(-50%); text-align: left; }
     
     .wx-sources { margin-top: 10px; text-align: center; }
-    .wx-source-line { font-size: 12px; color: #555; margin-bottom: 3px; white-space: nowrap; line-height: 1.3; font-weight: 500; }
+    /* 放大下方卦名文字 */
+    .wx-source-line { font-size: 14px; color: #555; margin-bottom: 3px; white-space: nowrap; line-height: 1.3; font-weight: bold; }
 
     /* 顏色區分 */
     .wx-color-火 { color: #d32f2f; }
@@ -83,11 +89,23 @@
     .box-symbol { font-size: 52px; line-height: 1.1; margin: 5px 0; color: #34495e; }
     .box-value { font-size: 17px; font-weight: bold; color: #2c3e50; }
     .highlight { color: #d35400; font-weight: bold; font-size: 20px; }
+    
+    /* 底部內心卦樣式 */
+    .neixin-area {
+      display: flex;
+      justify-content: space-around;
+      border-top: 2px dashed #eee;
+      padding-top: 20px;
+      margin-top: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      color: #333;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>開卦試算</h2>
+    <h2>開卦試算 (中階版)</h2>
     <div class="form-row">
       <div class="input-group">
         <label>月令</label>
@@ -152,6 +170,12 @@
           <div style="text-align: center; color: #666; font-size: 15px; font-weight: bold; margin-bottom: 25px;">【 五行能量與卦名分佈 】</div>
           <div class="wx-grid" id="wxGridArea"></div>
         </div>
+      </div>
+      
+      <!-- 最下方：內心卦 -->
+      <div class="neixin-area">
+        <div>內心(體)： <span id="resNeiXinTi" style="color: #d32f2f;"></span></div>
+        <div>內心(用)： <span id="resNeiXinYong"></span></div>
       </div>
     </div>
   </div>
@@ -219,7 +243,10 @@
 
       const upperGua = trigrams[upperIdx];
       const lowerGua = trigrams[lowerIdx];
+      
+      // 取得本卦爻陣列 (長度6，前三個為下卦，後三個為上卦)
       let yaosArr = (lowerGua.bits + upperGua.bits).split('');
+      
       let bianYaosArr = [...yaosArr];
       bianYaosArr[movingYao-1] = bianYaosArr[movingYao-1] === '1' ? '0' : '1';
       
@@ -239,6 +266,19 @@
       const benGuaName = hexagramNames[upperGua.name + lowerGua.name];
       const huGuaName = hexagramNames[huUpperGua.name + huLowerGua.name];
       const bianGuaName = hexagramNames[bianUpperGua.name + bianLowerGua.name];
+
+      // --- 內心卦(體) - 錯卦：本卦所有爻互換(1變0, 0變1) ---
+      let cuoYaosArr = yaosArr.map(b => b === '1' ? '0' : '1');
+      const cuoLowerGua = trigrams[bitsMap[cuoYaosArr.slice(0,3).join('')]];
+      const cuoUpperGua = trigrams[bitsMap[cuoYaosArr.slice(3,6).join('')]];
+      const neiXinTiName = hexagramNames[cuoUpperGua.name + cuoLowerGua.name];
+
+      // --- 內心卦(用) - 綜卦：本卦翻轉180度 (陣列順序反轉) ---
+      let zongYaosArr = [...yaosArr].reverse();
+      const zongLowerGua = trigrams[bitsMap[zongYaosArr.slice(0,3).join('')]];
+      const zongUpperGua = trigrams[bitsMap[zongYaosArr.slice(3,6).join('')]];
+      const neiXinYongName = hexagramNames[zongUpperGua.name + zongLowerGua.name];
+
 
       const guaSourcesAll = [
         { id: '體', tri: tiGua, hex: benGuaName, show: false }, 
@@ -283,6 +323,10 @@
       document.getElementById('resHuTi').innerText = huTiGua.name + huTiGua.wx;
       document.getElementById('resHuYong').innerText = huYongGua.name + huYongGua.wx;
       document.getElementById('resBian').innerText = bianTransformed.name + bianTransformed.wx;
+
+      // 顯示內心卦
+      document.getElementById('resNeiXinTi').innerText = neiXinTiName;
+      document.getElementById('resNeiXinYong').innerText = neiXinYongName;
 
       const rel = findWxRelation(tiGua.wx);
       const circledNum = { '1': '①', '2': '②', '3': '③', '4': '④' };
