@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>易經開卦</title>
+  
+  <!-- 引入開源的曆法套件：自動精算當日節氣與地支月令 -->
+  <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
+
   <style>
     body {
       font-family: 'Helvetica Neue', Helvetica, Arial, 'Microsoft JhengHei', sans-serif;
@@ -39,7 +43,6 @@
     
     .result-area { margin-top: 25px; padding-top: 20px; border-top: 2px dashed #e1e4e8; display: none; }
     
-    /* 調整為上下佈局，適合手機 */
     .layout-wrapper { display: flex; flex-direction: column; gap: 30px; margin-bottom: 20px; }
     .gua-panel { width: 100%; }
     .wuxing-panel { width: 100%; padding-top: 20px; border-top: 2px dashed #eee; }
@@ -48,7 +51,6 @@
     .wx-grid { 
       display: grid; 
       grid-template-columns: repeat(3, 1fr); 
-      /* 因為文字移到下方，稍微調整上下排的間距 */
       gap: 40px 8px; 
       justify-items: center; 
       align-items: start; 
@@ -63,15 +65,12 @@
     
     .wx-char { font-size: 30px; font-weight: bold; }
     
-    /* 標籤文字 */
     .wx-count { position: absolute; top: -22px; left: -5px; font-weight: bold; font-size: 16px; color: #333; }
     .wx-label-top { position: absolute; font-size: 14px; text-align: center; white-space: nowrap; color: #333; font-weight: bold; top: -22px; width: 100%; }
     
-    /* 移到正下方的格局文字 */
     .wx-label-bottom { font-size: 14px; color: #333; font-weight: bold; margin-top: 6px; margin-bottom: 4px; text-align: center; }
     
     .wx-sources { text-align: center; }
-    /* 下方卦名文字 */
     .wx-source-line { font-size: 14px; color: #555; margin-bottom: 3px; white-space: nowrap; line-height: 1.3; font-weight: bold; }
 
     /* 顏色區分 */
@@ -103,18 +102,24 @@
 </head>
 <body>
   <div class="container">
-    <h2>開卦試算中階版</h2>
+    <h2>開卦試算中階</h2>
     <div class="form-row">
       <div class="input-group">
-        <label>月令</label>
+        <label>月令(地支)</label>
         <select id="month" required>
-          <option value="" disabled selected>月令</option>
-          <option value="1">1月</option><option value="2">2月</option>
-          <option value="3">3月</option><option value="4">4月</option>
-          <option value="5">5月</option><option value="6">6月</option>
-          <option value="7">7月</option><option value="8">8月</option>
-          <option value="9">9月</option><option value="10">10月</option>
-          <option value="11">11月</option><option value="12">12月</option>
+          <!-- 系統會在此自動插入今天的月令 -->
+          <option value="1">1月 (寅)</option>
+          <option value="2">2月 (卯)</option>
+          <option value="3">3月 (辰)</option>
+          <option value="4">4月 (巳)</option>
+          <option value="5">5月 (午)</option>
+          <option value="6">6月 (未)</option>
+          <option value="7">7月 (申)</option>
+          <option value="8">8月 (酉)</option>
+          <option value="9">9月 (戌)</option>
+          <option value="10">10月 (亥)</option>
+          <option value="11">11月 (子)</option>
+          <option value="12">12月 (丑)</option>
         </select>
       </div>
       <div class="input-group"><label>第1把</label><input type="number" id="num1" required></div>
@@ -123,7 +128,7 @@
       <div class="input-group">
         <label>時間數</label>
         <select id="time" required>
-          <option value="" disabled selected>時辰</option>
+         <option value="" disabled selected>時辰</option>
           <option value="1">子 23:00-00:59</option><option value="2">丑 01:00-02:59</option>
           <option value="3">寅 03:00-04:59</option><option value="4">卯 05:00-06:59</option>
           <option value="5">辰 07:00-08:59</option><option value="6">巳 09:00-10:59</option>
@@ -179,6 +184,30 @@
   </div>
 
   <script>
+    // --- 頁面載入時自動取得今天的節氣月令 ---
+    window.onload = function() {
+      try {
+        const today = new Date();
+        const lunar = Lunar.fromDate(today);
+        // 取得精確的節氣月地支 (如: 寅, 卯...)
+        const autoMonthZhi = lunar.getMonthZhiExact(); 
+        
+        // 將地支轉換為系統使用的月份數字
+        const zhiToMonth = { '寅':1, '卯':2, '辰':3, '巳':4, '午':5, '未':6, '申':7, '酉':8, '戌':9, '亥':10, '子':11, '丑':12 };
+        const autoMonthNum = zhiToMonth[autoMonthZhi];
+        
+        // 在選單最上方插入自動計算的選項並預設選中
+        const monthSelect = document.getElementById('month');
+        const autoOption = document.createElement('option');
+        autoOption.value = autoMonthNum;
+        autoOption.selected = true;
+        autoOption.text = `[自動] ${autoMonthNum}月(${autoMonthZhi})`;
+        monthSelect.insertBefore(autoOption, monthSelect.firstChild);
+      } catch(e) {
+        console.log("曆法載入失敗，將使用手動選單", e);
+      }
+    };
+
     const trigrams = {
       1:{name:'乾',wx:'金',bits:'111'}, 2:{name:'兌',wx:'金',bits:'110'},
       3:{name:'離',wx:'火',bits:'101'}, 4:{name:'震',wx:'木',bits:'100'},
@@ -227,7 +256,7 @@
       const time = parseInt(document.getElementById('time').value);
       if(!month || !num1 || !num2 || !num3 || !time) { alert("請輸入完整的資料"); return; }
 
-      // 卦氣合化判斷
+      // 地支六合：判斷卦氣合化
       let guaQi = "";
       if (month === 1 || month === 10) guaQi = "木";
       else if (month === 2 || month === 9 || month === 5 || month === 6) guaQi = "火";
