@@ -120,6 +120,14 @@
       font-weight: bold;
       color: #333;
     }
+/* 手機長按預覽圖遮罩樣式 */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.85); z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .modal-tip { color: #fff; font-size: 18px; font-weight: bold; margin-bottom: 15px; text-align: center; }
+    .modal-img { max-width: 90%; max-height: 80vh; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
   </style>
 </head>
 <body>
@@ -435,34 +443,102 @@
       `;
     }
 
-    // --- 下載圖片功能 ---
+// --- 【升級版】手機/電腦通用的圖片下載與分享功能 ---
     function downloadImage() {
       const captureTarget = document.getElementById('captureTarget');
+      const btn = document.getElementById('btnDownload');
       
-      // 使用 html2canvas 將指定的 div 轉成 canvas
+      // 按鈕 UX 提示
+      const originalText = btn.innerText;
+      btn.innerText = "⏳ 圖片產生中...";
+      btn.disabled = true;
+
+      // 使用 html2canvas 產生圖片
       html2canvas(captureTarget, {
-        scale: 2, // 提高圖片解析度
-        backgroundColor: '#ffffff' // 確保背景是白色的
+        scale: window.devicePixelRatio > 1 ? 2 : 1, // 根據設備像素動態調整解析度，避免過大崩潰
+        backgroundColor: '#ffffff',
+        useCORS: true
       }).then(canvas => {
-        // 將 canvas 轉為圖片的 DataURL (Base64 編碼)
-        const imgData = canvas.toDataURL('image/png');
+        // 恢復按鈕狀態
+        btn.innerText = originalText;
+        btn.disabled = false;
         
-        // 建立一個隱藏的 a 標籤來觸發下載
-        const a = document.createElement('a');
-        a.href = imgData;
-        
-        // 根據使用者輸入的問題來命名檔案，如果沒有輸入則預設命名
         const questionText = document.getElementById('question').value.trim();
         const fileName = questionText ? `易經卦象_${questionText}.png` : '易經卦象.png';
-        a.download = fileName;
-        
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        // 將 Canvas 轉為 Blob 格式 (對於手機分享支援度更好)
+        canvas.toBlob(function(blob) {
+          // 【方案A】嘗試使用手機原生分享 API (支援 iOS 15+ / Android)
+          if (navigator.share && isMobile) {
+            const file = new File([blob], fileName, { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              navigator.share({
+                files: [file],
+                title: '易經開卦結果',
+                text: questionText ? `測問事項：${questionText}` : '易經開卦結果分享'
+              }).catch((error) => {
+                // 如果使用者取消分享，或是發生錯誤，自動降級使用方案B
+                console.log('分享取消或失敗，啟用備用方案', error);
+                showFallbackModal(canvas.toDataURL('image/png'));
+              });
+              return; // 成功呼叫分享 API 後結束
+            }
+          }
+
+          // 【方案B】傳統點擊下載 (適用於電腦端)
+          if (!isMobile) {
+            const imgData = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = imgData;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          } else {
+            // 【方案C】如果是手機但不支援分享 API (如 LINE 瀏覽器)，直接彈出視窗讓使用者長按儲存
+            showFallbackModal(canvas.toDataURL('image/png'));
+          }
+
+        }, 'image/png');
+
       }).catch(err => {
+        btn.innerText = originalText;
+        btn.disabled = false;
         console.error("圖片產生失敗", err);
-        alert("產生截圖失敗，請稍後再試！");
+        alert("產生截圖失敗，請稍後再試！\n" + err.message);
       });
+    }
+
+    // --- 終極備用方案：顯示全螢幕預覽圖供手機使用者長按儲存 ---
+    function showFallbackModal(dataUrl) {
+      // 建立全螢幕遮罩
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      
+      // 提示文字
+      const tip = document.createElement('div');
+      tip.className = 'modal-tip';
+      tip.innerHTML = "請「長按下方圖片」選擇儲存或分享<br><span style='font-size:14px; font-weight:normal; color:#ccc;'>(點擊背景任意處可關閉)</span>";
+      
+      // 圖片元件
+      const img = document.createElement('img');
+      img.className = 'modal-img';
+      img.src = dataUrl;
+      
+      // 點擊背景關閉
+      overlay.onclick = function() {
+        document.body.removeChild(overlay);
+      };
+      
+      // 點擊圖片不關閉
+      img.onclick = function(e) {
+        e.stopPropagation();
+      };
+      
+      overlay.appendChild(tip);
+      overlay.appendChild(img);
+      document.body.appendChild(overlay);
     }
   </script>
 </body>
